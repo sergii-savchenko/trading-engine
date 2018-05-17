@@ -1,0 +1,14 @@
+{
+  "name": "order-client",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "author": "Sergii Savchenko <ssavchenko@heliostech.fr>",
+  "license": "ISC",
+  "dependencies": {
+    "hemera-joi": "5.2.1",
+    "hemera-jaeger": "4.0.4",
+    "nats": "0.8.4",
+    "nats-hemera": "^5.3.0"
+  }
+}
