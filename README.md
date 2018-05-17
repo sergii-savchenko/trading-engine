@@ -1,7 +1,7 @@
-![aither](https://github.com/hemerajs/aither/blob/master/logo.png?raw=true)
-# aither
+# Microservice prototype and sizing demo for Exchange
 
-Aither shows an approach how to bootstrap a microservice system in Node.js with [Hemera 5](https://hemerajs.github.io/hemera/) and docker.
+This is demo on 
+
 You can scale your worker in seconds and because we use NATS as “nervous system" for our distributed system we do not have to worry about service-discovery or load-balancing of hemera-services. We use traefik to load-balancing the api-gateway.
 
 This configuration will setup:

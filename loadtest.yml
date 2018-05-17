@@ -6,13 +6,8 @@
 config:
   target: "http://localhost:8182"
   phases:
-    - duration: 60
-      arrivalRate: 5
-    - duration: 120
-      arrivalRate: 5
-      rampTo: 50
-    - duration: 600
-      arrivalRate: 50
+    - duration: 10
+      arrivalRate: 5000
 scenarios:
   - name: "Add two numbers without cache"
     flow:
