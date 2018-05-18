@@ -1,6 +1,61 @@
 # Microservice prototype and sizing demo for Exchange
 
-This is demo on 
+## Low level recommendations
+
+Main recommendation on architecture is move to microservice architecture for API calls on Peatio daemons. 
+
+* To be able to isolate each microaction and measure efficiency
+* Ability to scale any non-locking microservice to face needed load
+
+## High level requirements 
+
+Estimations on load cap: 1000 orders per second, 10000 concurrent users
+
+It should be technological flexibility to be able to evaluate system and have a plan of technological 
+transition. As a source of incoming orders RabitMQ and RESTful API must be supported
+
+## Business logics on Orders
+
+### Features
+
+* Market order support
+* Limit order support
+* Partial filling support
+* Order cancellation support
+* Order update/amendment
+
+### Data structures 
+
+New order submission
+* Order ID
+* Order type = market | limit
+* Instrument = currency pair
+* Desired price/rate
+* Limit order only
+* Creation time (server)
+* Received time (when daemon received it)
+* Amount=Volume=Quantity
+* Output message format
+
+Order accepted
+* Order ID
+
+Order updated
+* Order ID 
+* Executed amount
+
+Order closed
+* Order ID
+
+Order statuses
+* New/Submitted
+* Partially Filled
+* Closed
+* Cancelled
+* Executed
+
+
+# Prototype suggestions
 
 You can scale your worker in seconds and because we use NATS as “nervous system" for our distributed system we do not have to worry about service-discovery or load-balancing of hemera-services. We use traefik to load-balancing the api-gateway.
 
