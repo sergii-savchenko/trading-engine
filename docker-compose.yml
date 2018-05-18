@@ -11,6 +11,14 @@ services:
       - "8222:8222"
     hostname: nats-server
     restart: always
+  
+  db:
+    image: mysql:5.7
+    volumes:
+      - db_data:/var/lib/mysql
+    environment:
+      MYSQL_ROOT_PASSWORD: changeme
+
 
   api:
     build:
@@ -57,6 +65,7 @@ services:
       - nats
     depends_on:
       - nats
+      - db
       - redis
       - jaeger
     restart: always
@@ -65,7 +74,10 @@ services:
       NATS_USER: ruser
       NATS_PW: T0pS3cr3t
       JAEGER_URL: jaeger
-      HEMERA_LOG_LEVEL: error
+      DATABASE_HOST: db
+      DATABASE_USER: root
+      DATABASE_PW: changeme
+      DATABASE_NAME: test
 
   cache-service:
     build:

@@ -6,52 +6,64 @@ const nats = require('nats').connect({
   user: process.env.NATS_USER,
   pass: process.env.NATS_PW
 })
-const hemera = new Hemera(nats, {
-  logLevel: process.env.HEMERA_LOG_LEVEL,
-  childLogger: true,
-  tag: 'hemera-order'
-})
+const knex = require('knex')({
+  client: 'mysql',
+  connection: {
+    host : process.env.DATABASE_HOST,
+    user : process.env.DATABASE_USER,
+    password : process.env.DATABASE_PW,
+    database : process.env.DATABASE_NAME
+  },
+  pool: { min: 0, max: 7 }
+});
+
+var Promise = require('bluebird');
+
+const matchingOrder = function(id, order, trx) {
+  if (order.side == "buy") {
+    var side = 'sell',
+      priceCompare = '>',
+      priceOrder = 'desc'
+  } else {
+    var side = 'buy',
+      priceCompare = '<',
+      priceOrder = 'asc'
+  }
+  knex('orders')
+    .where({'side': side, market: order.market, status: 'wait'})
+    .andWhere('createdAt', '<', order.createdAt)
+    .andWhere('price', priceCompare, order.price)
+    .orderBy('price', priceOrder)
+    .then(function(resp) {
+      //#TODO: create trade/update trading orders
+    })
+}
 
 async function start() {
-  hemera.use(HemeraJoi)
-  hemera.use(HemeraJaeger, {
-    serviceName: 'order',
-    jaeger: {
-      sampler: {
-        type: 'Const',
-        options: true
-      },
-      options: {
-        tags: {
-          'nodejs.version': process.versions.node
-        }
-      },
-      reporter: {
-        host: process.env.JAEGER_URL
-      }
-    }
-  })
-
-  hemera.ready(() => {
-
-  let Joi = hemera.joi
-
   nats.subscribe('orders.new', function(request, replyTo) {
-    var data = JSON.parder(request);
-    // TODO: add jwt verification
-    hemera.act({
-      topic: 'mongo-store',
-      cmd: 'create',
-      collection: 'Orders',
-      data: EJSON.serialize(data.order)
-    }, async function(error, response) {
-      if (error) {
-        nats.publish(replyTo, JSON.stringify({error}))
-      } else {
-        nats.publish('matching', JSON.stringify({response}));
-        nats.publish(replyTo, JSON.stringify({response}));
-      }
+    try {
+      var order = JSON.parse(request);
+    } catch(err) {
+      nats.publish(replyTo, JSON.stringify({err}))
+    }
+    knex.transaction(function(trx) {
+      knex.insert(order).into('orders')
+        .returning(['id', 'createdAt', 'status'])
+        .transacting(trx)
+        .then(function(resp) {
+          var data = resp[0];
+          return matchingOrder(data, order, trx);
+        })
+        .then(trx.commit)
+        .catch(trx.rollback);
     })
+    .then(function(resp) {
+
+      nats.publish('order.created', resp)
+    })
+    .catch(function(err) {
+      console.error(err);
+    });
   });
 }
 

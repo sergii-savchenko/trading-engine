@@ -6,8 +6,11 @@
   "author": "Sergii Savchenko <ssavchenko@heliostech.fr>",
   "license": "ISC",
   "dependencies": {
-    "hemera-joi": "5.2.1",
+    "bluebird": "^3.5.1",
     "hemera-jaeger": "4.0.4",
+    "hemera-joi": "5.2.1",
+    "knex": "^0.14.6",
+    "mysql": "^2.15.0",
     "nats": "0.8.4",
     "nats-hemera": "^5.3.0"
   }
