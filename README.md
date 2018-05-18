@@ -99,7 +99,7 @@ This configuration will setup:
 
 ## Architecture
 
-![blocics](https://github.com/sergii-savchenko/arch.png?raw=true)
+![blocics](https://github.com/sergii-savchenko/trading-engine/raw/master/arch.png)
 
 ![aither](https://github.com/hemerajs/aither/blob/master/aither-architecture.png?raw=true)
 
