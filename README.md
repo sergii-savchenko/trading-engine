@@ -55,6 +55,30 @@ Order statuses
 * Executed
 
 
+### RESTful endpoints
+
+#### Create order
+
+POST `/api/v3/order` 
+
+#### Delete order
+
+DELETE `/api/v3/order/{id}` 
+
+### Microservices
+
+#### JWT Authentication
+#### GUID generator
+#### Redis cache
+#### MySQL persistent order creation / deletion
+#### Trading engine
+#### Incoming order RabitMQ subscriber
+#### Statistics generator invoker
+#### Member accounts update service
+#### Market and ticker pusher
+#### Private orderbook pusher
+#### Member Accounts pusher
+
 # Prototype suggestions
 
 You can scale your worker in seconds and because we use NATS as “nervous system" for our distributed system we do not have to worry about service-discovery or load-balancing of hemera-services. We use traefik to load-balancing the api-gateway.
@@ -74,6 +98,8 @@ This configuration will setup:
  * Hemera 5
 
 ## Architecture
+
+![blocics](https://github.com/sergii-savchenko/arch.png?raw=true)
 
 ![aither](https://github.com/hemerajs/aither/blob/master/aither-architecture.png?raw=true)
 
