@@ -40,7 +40,7 @@ const knex = require('knex')({
 
 var Promise = require('bluebird');
 
-const createTrade = function(order, slave, callback) {
+const createTrade(order, slave, trx, callback) {
   var volume = 0;
   if (order.remainingAmount <= slave.remainingAmount) {
     volume = order.remainingAmount;
@@ -57,12 +57,13 @@ const createTrade = function(order, slave, callback) {
     slave.status = "executed"
     slave.executedAmount += volume;
   }
-  knex('trades').insert({
+  trx.insert({
     orderId: order.id,
     slaveOrderId: slave.id,
     volume: volume,
     price: slave.price
   })
+  .into('trades')
   .returning(['id', 'orderId', 'slaveOrderId', 'volume', 'price'])
   .then(function(resp){
     if (Array.isArray(order.trades)) {
@@ -75,13 +76,18 @@ const createTrade = function(order, slave, callback) {
     } else {
       slave.trades = [resp]
     }
-    knex('orders').where('id', '=', order.id).update({
+    trx
+    .where('id', '=', order.id).update({
       status: order.status,
       remainingAmount: order.remainingAmount,
       executedAmount: order.executedAmount,
       trades: order.trades
-    }).then(function(resp) {
-      knex('orders').where('id', '=', slave.id).update({
+    })
+    .into('orders')
+    .then(function(resp) {
+      trx.where('id', '=', slave.id)
+      .into('orders')
+      .update({
         status: slave.status,
         remainingAmount: slave.remainingAmount,
         executedAmount: slave.executedAmount,
@@ -101,11 +107,11 @@ const createTrade = function(order, slave, callback) {
   callback(null, order);
 }
 
-const comparePrice = function(order, side, priceCompare, priceOrder, callback) {
+const comparePrice = function(order, side, priceCompare, priceOrder, trx, callback) {
   if (order.status !== "wait") {
     callback(null, order);
   } else {
-    knex.select("*")
+    trx.select("*")
       .from('orders')
       .where('price', priceCompare, order.price)
       .orWhere('price', '=', order.price)
@@ -115,7 +121,7 @@ const comparePrice = function(order, side, priceCompare, priceOrder, callback) {
       .limit(1)
       .then(function(resp) {
         if (resp.length != 0) {
-          createTrade(order, resp[0], function(err, response) {
+          createTrade(order, resp[0], trx, function(err, response) {
             if (err) {
               callback(err, null)
             } else {
@@ -123,7 +129,7 @@ const comparePrice = function(order, side, priceCompare, priceOrder, callback) {
               if (order.status !== "wait") {
                 callback(null, order);
               } else {
-                comparePrice(order, side, priceCompare, priceOrder, function(err, response) {
+                comparePrice(order, side, priceCompare, priceOrder, trx, function(err, response) {
                   if (err) {
                     callback(err, null);
                   } else {
@@ -153,7 +159,7 @@ const matchingOrders = function(order, trx, callback) {
       priceCompare = '<=',
       priceOrder = 'asc'
   }
-  comparePrice(order, side, priceCompare, priceOrder, function(err, resp) {
+  comparePrice(order, side, priceCompare, priceOrder, trx, function(err, resp) {
     callback(err, resp);
   })
 }
