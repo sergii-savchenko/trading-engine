@@ -1,24 +1,24 @@
 /* 
-ORDERS data structure
-id
-market
-side
-creationTime
-receivedTime
-price
-volume
-remainingAmount
-executedAmount
-status
+CREATE TABLE orders (
+id varchar(64),
+market varchar(16),
+side varchar(16),
+creationTime datetime,
+price float(10,4),
+volume float(10,4),
+remainingAmount float(10,4),
+executedAmount float(10,4),
+status varchar(16));
 ----------------
-TRADES data structure
-id
-orderId
-slaveOrderId
-price
-volume
+CREATE TABLE trades (
+id varchar(64),
+orderId varchar(64),
+slaveOrderId varchar(64),
+price float(10,4),
+volume float(10,4));
 */
 
+const uuid = require('uuid/v4');
 const Hemera = require('nats-hemera')
 const HemeraJoi = require('hemera-joi')
 const HemeraJaeger = require('hemera-jaeger')
@@ -40,7 +40,7 @@ const knex = require('knex')({
 
 var Promise = require('bluebird');
 
-const createTrade(order, slave, trx, callback) {
+const createTrade = function(order, slave, trx, callback) {
   var volume = 0;
   if (order.remainingAmount <= slave.remainingAmount) {
     volume = order.remainingAmount;
@@ -58,6 +58,7 @@ const createTrade(order, slave, trx, callback) {
     slave.executedAmount += volume;
   }
   trx.insert({
+    id: uuid(),
     orderId: order.id,
     slaveOrderId: slave.id,
     volume: volume,
@@ -108,6 +109,7 @@ const createTrade(order, slave, trx, callback) {
 }
 
 const comparePrice = function(order, side, priceCompare, priceOrder, trx, callback) {
+  console.log("COMPARE PRICE", order, side, priceCompare, priceOrder);
   if (order.status !== "wait") {
     callback(null, order);
   } else {
@@ -120,6 +122,7 @@ const comparePrice = function(order, side, priceCompare, priceOrder, trx, callba
       .orderBy('price', priceOrder)
       .limit(1)
       .then(function(resp) {
+        console.log("SELECT 1 ", resp);
         if (resp.length != 0) {
           createTrade(order, resp[0], trx, function(err, response) {
             if (err) {
@@ -150,54 +153,61 @@ const comparePrice = function(order, side, priceCompare, priceOrder, trx, callba
 }
 
 const matchingOrders = function(order, trx, callback) {
+  console.log("MATCHING ORDER", order)
   if (order.side == "buy") {
     var side = 'sell',
       priceCompare = '>',
       priceOrder = 'desc'
   } else {
     var side = 'buy',
-      priceCompare = '<=',
+      priceCompare = '<',
       priceOrder = 'asc'
   }
+  console.log("SIDE", side, "priceCompare", priceCompare, "priceOrder", priceOrder);
   comparePrice(order, side, priceCompare, priceOrder, trx, function(err, resp) {
     callback(err, resp);
   })
 }
 
 async function start() {
-  nats.subscribe('orders.new', function(request, replyTo) {
+  nats.subscribe('orders.new', function(request) {
+    console.log("ORDERS.NEW", request);
     try {
       var order = JSON.parse(request);
-      order.receivedTime = new Date().toUTCString();
+      order.id = uuid();
+      order.creationTime = new Date();
       order.remainingAmount = order.volume;
       order.executedAmount = 0;
-    } catch(err) {
-      nats.publish(replyTo, JSON.stringify({err}))
-    }
-    knex.transaction(function(trx) {
-      knex.insert(order).into('orders')
-        .returning(['id', 'creationTime', 'status', 'price', 'market', 'volume', 'executedAmount', 'remainingAmount', 'side'])
-        .transacting(trx)
-        .then(function(resp) {
-          var data = resp[0];
-          matchingOrders(data, trx, function(err, resp) {
-            if (err) {
-              throw err;
-            } else {
-              return resp;
-            }
-          });
-        })
-        .then(trx.commit)
-        .catch(trx.rollback);
-    })
-    .then(function(resp) {
+      order.status = 'wait';
+      console.log("NEW ORDER", order);
+      knex.transaction(function(trx) {
+        knex.insert(order).into('orders')
+          .transacting(trx)
+          .then(function(resp) {
+            console.log("INSERT", resp);
+            var data = resp[0];
+            matchingOrders(data, trx, function(err, resp) {
+              console.log("MATCHING", err, resp);
+              if (err) {
+                throw err;
+              } else {
+                return resp;
+              }
+            });
+          })
+          .then(trx.commit)
+          .catch(trx.rollback);
+      })
+      .then(function(resp) {
 
-      nats.publish('order.created', resp)
-    })
-    .catch(function(err) {
-      console.error(err);
-    });
+        nats.publish('order.created', resp)
+      })
+      .catch(function(err) {
+        console.error(err);
+      });
+    } catch(err) {
+      nats.publish('orders.error', JSON.stringify({err}))
+    }
   });
 }
 

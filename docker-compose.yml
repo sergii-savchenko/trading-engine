@@ -41,22 +41,22 @@ services:
       API_HOST: 0.0.0.0
       HEMERA_LOG_LEVEL: error
 
-  math-service:
-    build:
-      context: "./math-service"
-    links:
-      - nats
-    depends_on:
-      - nats
-      - redis
-      - jaeger
-    restart: always
-    environment:
-      NATS_URL: nats://nats:4222
-      NATS_USER: ruser
-      NATS_PW: T0pS3cr3t
-      JAEGER_URL: jaeger
-      HEMERA_LOG_LEVEL: error
+  # math-service:
+  #   build:
+  #     context: "./math-service"
+  #   links:
+  #     - nats
+  #   depends_on:
+  #     - nats
+  #     - redis
+  #     - jaeger
+  #   restart: always
+  #   environment:
+  #     NATS_URL: nats://nats:4222
+  #     NATS_USER: ruser
+  #     NATS_PW: T0pS3cr3t
+  #     JAEGER_URL: jaeger
+  #     HEMERA_LOG_LEVEL: error
 
   order-service:
     build:
