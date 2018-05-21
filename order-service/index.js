@@ -130,10 +130,10 @@ const comparePrice = function(order, side, priceCompare, priceOrder, callback) {
                     order = response;
                     callback(null, order);
                   }
-                })
+                });
               }
             }
-          })
+          });
         } else {
           callback(null, order);
         }
@@ -176,7 +176,7 @@ async function start() {
           var data = resp[0];
           matchingOrders(data, trx, function(err, resp) {
             if (err) {
-              return throw err
+              throw err;
             } else {
               return resp;
             }
