@@ -40,7 +40,7 @@ const knex = require('knex')({
 
 var Promise = require('bluebird');
 
-const createTrade(order, slave, callback) {
+const createTrade = function(order, slave, callback) {
   var volume = 0;
   if (order.remainingAmount <= slave.remainingAmount) {
     volume = order.remainingAmount;
