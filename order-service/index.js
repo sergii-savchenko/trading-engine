@@ -19,40 +19,71 @@ const knex = require('knex')({
 
 var Promise = require('bluebird');
 
-const matchingOrder = function(id, order, trx) {
+const createTrade(order, slave) {
+  return order;
+}
+
+const comparePrice = function(order, side, priceCompare, priceOrder) {
+  if (order.status !== "wait") {
+    return order
+  }
+  knex.select("*")
+    .from('orders')
+    .where('price', priceCompare, order.price)
+    .orWhere('price', '=', order.price)
+    .andWhere({'side': side, market: order.market, status: 'wait'})
+    .andWhere('createdAt', '<', order.creationTine)
+    .orderBy('price', priceOrder)
+    .limit(1)
+    .then(function(resp) {
+      if (resp.length != 0) {
+        createTrade(order, resp[0], function(response) {
+          order = response;
+          if (order.status !== "wait") {
+            return order
+          }
+          comparePrice(order, side, priceCompare, priceOrder, function(response) {
+            order = response;
+            if (order.status !== "wait") return order
+          })
+        })
+      } else {
+        return order
+      }
+    })
+}
+
+const matchingOrder = function(order, trx) {
   if (order.side == "buy") {
     var side = 'sell',
       priceCompare = '>',
       priceOrder = 'desc'
   } else {
     var side = 'buy',
-      priceCompare = '<',
+      priceCompare = '<=',
       priceOrder = 'asc'
   }
-  knex('orders')
-    .where({'side': side, market: order.market, status: 'wait'})
-    .andWhere('createdAt', '<', order.createdAt)
-    .andWhere('price', priceCompare, order.price)
-    .orderBy('price', priceOrder)
-    .then(function(resp) {
-      //#TODO: create trade/update trading orders
-    })
+  comparePrice(order, side, priceCompare, priceOrder, function(resp) {
+    return resp;
+  })
 }
 
 async function start() {
   nats.subscribe('orders.new', function(request, replyTo) {
     try {
       var order = JSON.parse(request);
+      order.receivedTime = new Date().toUTCString();
+      order.remainingAmount = order.volume;
     } catch(err) {
       nats.publish(replyTo, JSON.stringify({err}))
     }
     knex.transaction(function(trx) {
       knex.insert(order).into('orders')
-        .returning(['id', 'createdAt', 'status'])
+        //.returning(['id', 'creationTime', 'status'])
         .transacting(trx)
         .then(function(resp) {
           var data = resp[0];
-          return matchingOrder(data, order, trx);
+          return matchingOrder(data, trx);
         })
         .then(trx.commit)
         .catch(trx.rollback);
